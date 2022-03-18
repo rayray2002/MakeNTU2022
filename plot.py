@@ -4,9 +4,9 @@ pd.set_option('display.max_columns', 500)
 
 users = ["A", "B", "C", "D", "E"]
 for user in users:
-    df = pd.read_csv(f'data/{user}_out.csv')
+    df = pd.read_csv(f'data/{user}_SM.csv')
 
     cols = df.columns
-    df.interpolate(method='linear').plot.line(x='timestamp', subplots=True, figsize=(94,24))
+    df.plot.line(x='time', subplots=True, figsize=(24,8))
     plt.title(user)
-    plt.savefig(f'data/plot/{user}.png')
+    plt.savefig(f'data/plot/{user}_SM.png')

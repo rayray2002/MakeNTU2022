@@ -2,10 +2,10 @@ from statistics import mean
 import RPi.GPIO as GPIO
 import time
 
-GPIO.setmode(GPIO.BCM)
+GPIO.setmode(GPIO.BOARD)
 
-a_pin = 18
-b_pin = 23
+a_pin = 16
+b_pin = 18
 
 
 def discharge():
@@ -32,12 +32,18 @@ def analog_read():
 
 while True:
     x = []
-    for i in range(20):
+    for i in range(10):
         x.append(analog_read())
-    y = sorted(x)
-    sum = 0
-    for j in range(7):
-        sum += y[j + 7]
-    mean = sum / 7
-    print(mean)
-    time.sleep(1)
+        time.sleep(0.05)
+    x = sum(x) / len(x)
+
+    # x = sorted(x)[3:6]
+    x = (x - 100) / 300
+    if x < 0:
+        x = 0
+    if x > 2:
+        x = 2
+    print(x)
+
+    # print(analog_read())
+    # time.sleep(0.1)

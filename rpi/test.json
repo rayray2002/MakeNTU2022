@@ -1,0 +1,15 @@
+{
+    "id": 123,
+    "Name": "wsrsw",
+    "Email": "wsrsw@example.com",
+    "contents": [
+      {
+        "subject":"Math", 
+        "score":80
+      },
+      {
+        "subject":"English", 
+        "score":90
+      }
+    ]
+  }

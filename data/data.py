@@ -5,7 +5,7 @@ from functools import reduce
 
 dataList = pd.read_excel("raw/Available Device _ Scope.xlsx")[["資料項目", "Scope"]]
 
-users = ["A", "B", "C", "D", "E"]
+users = ["A", "B", "C", "D", "E", "F"]
 devices = ["PV", "SM", "AC", "ESS", "EV Charger"]
 
 for user in users:

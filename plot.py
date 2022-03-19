@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+
 pd.set_option('display.max_columns', 500)
 
 users = ["A", "B", "C", "D", "E"]

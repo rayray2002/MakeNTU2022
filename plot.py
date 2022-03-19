@@ -10,4 +10,4 @@ for user in users:
     cols = df.columns
     df.plot.line(x='timestamp', subplots=True, figsize=(24,8))
     plt.title(user)
-    plt.savefig(f'data/plot/{user}_SM.png')
+    plt.savefig(f'data/plot/{user}_out.png')

@@ -1,21 +1,25 @@
 import RPi.GPIO as GPIO
 import threading
+
 # import time
 import pandas as pd
 import numpy as np
 import serial
 import matplotlib.pyplot as plt
+
 # import matplotlib.dates as md
 # from datetime import datetime
 # from PIL import Image
 import json
+
 # import matplotlib
-# matplotlib.use('GTKAgg') 
+# matplotlib.use('GTKAgg')
 
 pd.options.mode.chained_assignment = None
 
 
 AC_PIN = 32
+SOLAR_PIN = 37
 
 # ratio = 0
 ratios = [0, 0, 0, 0, 0, 0]
@@ -23,12 +27,12 @@ ratios = [0, 0, 0, 0, 0, 0]
 outJSON = {
     "ac_electricity": 0.0,
     "ac_usage": 0.0,
-    "ac_corr": 0,
+    "ac_abnormal": 0,
     "solar_electricity": 0,
     "solar_usage": 0,
-    "solar_corr": 0,
+    "solar_abnormal": 0,
     "predfee": 0,
-    "aclimit": 0
+    "aclimit": False,
 }
 
 
@@ -36,7 +40,8 @@ def setup():
     GPIO.setwarnings(True)
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(AC_PIN, GPIO.OUT, initial=GPIO.LOW)
-    ac = GPIO.PWM(AC_PIN, 100)
+    GPIO.setup(SOLAR_PIN, GPIO.OUT, initial=GPIO.HIGH)
+    ac = GPIO.PWM(AC_PIN, 2000)
     ac.start(50)
     return ac
 
@@ -57,6 +62,10 @@ class arduinoReader(threading.Thread):
                     line = line.split(",")
                     id = int(line[0])
                     value = float(line[1]) / 512
+                    if value < 0.1:
+                        value = 0
+                    if value > 1.9:
+                        value = 2
                     ratios[id] = value
                     # print(id, value)
                 except:
@@ -77,6 +86,8 @@ if __name__ == "__main__":
     corrcoef = [0, 0, 0]
     predfee = 0
     count = 0
+    daily_usage = 0
+    daily_limit = 10
 
     fig, ax = plt.subplots(figsize=(8, 4))
     daySep = []
@@ -104,9 +115,11 @@ if __name__ == "__main__":
                 print(old.shape, new.shape)
                 corrcoef[i] = np.corrcoef(new, old)[0, 1]
                 print(corrcoef)
+                daily_usage = 0
 
             ratio = ratios[i]
             print(ratios)
+            print(f"daily_usage:{daily_usage}")
 
             instanceElectricity = row[column]
             # dt = datetime.fromtimestamp(row["time"] + 1643587200).strftime("%m/%d %H:%M")
@@ -114,7 +127,8 @@ if __name__ == "__main__":
             if i != 2:
                 electricity[i] = instanceElectricity * ratio
             else:
-                electricity[2] = electricity[0]*ratios[0] - electricity[1]* ratios[1]
+                electricity[2] = electricity[0] * ratios[0] - electricity[1] * ratios[1]
+                daily_usage += electricity[2] / 1000
             electricityRecord[i].append(electricity[i])
             usage[i] = electricity[i] / 1000
             if count:
@@ -123,26 +137,44 @@ if __name__ == "__main__":
                 usageRecord[i].append(usage[i])
             # print(f"{ratio:.2f}, {power:.2f}, {row['time']}, {electricity[i]:.2f}")
 
-            # predfee[i] = pred[column].sum() / 1000 * 15
+            # GPIO.cleanup()
+            if electricity[1] > 0:
+                print("sun")
+                GPIO.output(SOLAR_PIN, GPIO.HIGH)
+            else:
+                print("no sun")
+                GPIO.output(SOLAR_PIN, GPIO.LOW)
 
-            outJSON[f"{device}_electricity"] = electricity[i]
-            outJSON[f"{device}_usage"] = usage[i]
-            outJSON[f"{device}_corr"] = corrcoef[i]
+            outJSON[f"{device}_electricity"] = round(electricity[i], 2)
+            outJSON[f"{device}_usage"] = round(usage[i], 2)
+            outJSON[f"{device}_abnormal"] = bool(corrcoef[i] < 0.7)
             outJSON_str = json.dumps(outJSON)
-            with open("output/out.json", "w") as f:
-                f.write(outJSON_str)
-            # print(outJSON_str)
 
-            if device == 'ac':
-                power = max(min(electricity[i] / 50, 100), 0)
+            if device == "ac":
+                if daily_usage > daily_limit:
+                    power = 0
+                    ac.stop()
+                    outJSON["aclimit"] = True
+                else:
+                    power = max(min(electricity[i] / 50, 100), 0)
+                    outJSON["aclimit"] = False
+
                 ac.ChangeDutyCycle(power)
 
             if count % 3 == 0:
                 pred_len = 48
-                pred = data.iloc[count : count + pred_len, :]
-                pred[column] = pred[column] * ratio
+                if i < 2:
+                    pred = data.iloc[count : count + pred_len, :]
+                    pred[column] = pred[column] * ratio
+                else:
+                    pred = allData.iloc[count : count + pred_len, :]
+                    pred[column] = pred["E_instanceElectricity"] * ratios[0] - pred["instanceElectricityIN"] * ratios[1]
                 pred[column] = pred[column].multiply(noise, axis=0)
-                pred.iloc[0, 1] = electricity[i]
+                pred.iloc[0, -1] = electricity[i]
+
+                if i == 2:
+                    predfee = pred["add"].sum() / 1000 * 15
+                    outJSON["predfee"] = round(predfee*3, 2)
 
                 # Plot
                 ax.plot(date, usageRecord[i], color="b")
@@ -188,6 +220,8 @@ if __name__ == "__main__":
 
                 plt.cla()
 
-        print(electricity)
+            with open("output/out.json", "w") as f:
+                f.write(outJSON_str)
+            print(outJSON_str)
 
         count += 1

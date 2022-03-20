@@ -15,8 +15,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Navbar from './navbar';
 import Stats from './stats'
 import Limit from './limit';
-
-
+import { Paper } from '@mui/material';
+import './index.css'
 
 const MainPage = () =>{
     const [mode, SetMode] = useState('stats');
@@ -27,7 +27,9 @@ const MainPage = () =>{
         </div>
         <br/>
         <div>
-            {mode === 'home'? (<Button>Home</Button>): mode === 'stats' ?(<Stats/>) :<Limit/>}
+            <Paper style={{ background: '#FCFAF2' }} elevation = {1}>
+                {mode === 'home'? (<Button>Home</Button>): mode === 'stats' ?(<Stats/>) :<Limit/>}
+            </Paper>
         </div>
         </>
   );

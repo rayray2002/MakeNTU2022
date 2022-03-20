@@ -22,7 +22,7 @@ const Navbar = (props) => {
   }
 
   return (
-    <AppBar position="relative">
+    <AppBar position="relative" style={{ background: '#00AA90' }}>
       <Container maxWidth="xl">
         <Toolbar disableGutters>
           <Typography
@@ -31,7 +31,7 @@ const Navbar = (props) => {
             component="div"
             sx={{ mr: 2, display: { xs: 'none', md: 'flex' } }}
           >
-            MakeNTUs
+            MakeNTU
           </Typography>
 
           <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>

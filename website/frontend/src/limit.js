@@ -20,13 +20,13 @@ const Col_wrapper = styled.div`
     align-items: center; 
 `
 const Limit = () =>{
-    //const [time,setTime] = useState("");
-    //const [lim,setLim] = useState("");
+    //const [lim,setLim] = useState(0);
     const [bill,setBill] = useState(0);
     const handleBill = ()=>{
         let inttime = parseInt(values.time)
         let intlim  = parseInt(values.lim)
-        setBill(inttime*intlim);
+        setBill(inttime*intlim*0+10);
+        //setLim(1);
     }
     const [values, setValues] = useState({
         time: '',
@@ -59,13 +59,12 @@ const Limit = () =>{
                             <LightbulbIcon fontSize="large"/>
                             <Typography variant='h2'>Upper limit of electricity</Typography>
                         </Col_wrapper>
-                        <TextField label="Time limit" variant="standard" value={values.time} onChange={handleChange('time')}
-                         endAdornment={<InputAdornment position="end">hr</InputAdornment>}/>
-                        <TextField label="Time limit" variant="standard" value={values.lim} onChange={handleChange('lim')} 
-                        endAdornment={<InputAdornment position="end">hr</InputAdornment>}/>
+                        <TextField defaultValue='10' label="Time limit" variant="standard" value={values.time} onChange={handleChange('time')}
+                         endAdornment={<InputAdornment position="end">hr</InputAdornment>} />
+                        <TextField defaultValue='10' label="Time limit" variant="standard" value={values.lim} onChange={handleChange('lim')} 
+                        endAdornment={<InputAdornment position="end">hr</InputAdornment>} />
                         <Button variant="contained" color="success" onClick={handleBill}>Apply</Button>
-                        <Button variant="contained" color="success" onClick={handleLimit}>LApply</Button>
-                        <Typography variant='h3'>Estimated bill = {bill}</Typography>
+                        <Typography variant='h3'>估計用電上限理想值 = {bill}</Typography>
                     </Stack>
                 </Box>
                 <br/>

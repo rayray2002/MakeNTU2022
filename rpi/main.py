@@ -1,65 +1,44 @@
 import RPi.GPIO as GPIO
 import threading
-import time
+# import time
 import pandas as pd
 import numpy as np
 import serial
 import matplotlib.pyplot as plt
-import matplotlib.dates as md
-from datetime import datetime
-# from arduino import *
+# import matplotlib.dates as md
+# from datetime import datetime
+# from PIL import Image
+import json
+# import matplotlib
+# matplotlib.use('GTKAgg') 
+
 pd.options.mode.chained_assignment = None
 
 
-MOTOR_PIN = 32
-R_PIN_A = 16
-R_PIN_B = 18
+AC_PIN = 32
 
-ratio = 0
+# ratio = 0
 ratios = [0, 0, 0, 0, 0, 0]
 
+outJSON = {
+    "ac_electricity": 0.0,
+    "ac_usage": 0.0,
+    "ac_corr": 0,
+    "solar_electricity": 0,
+    "solar_usage": 0,
+    "solar_corr": 0,
+    "predfee": 0,
+    "aclimit": 0
+}
 
 
 def setup():
-    GPIO.setwarnings(False)
+    GPIO.setwarnings(True)
     GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(MOTOR_PIN, GPIO.OUT, initial=GPIO.LOW)
-    motor = GPIO.PWM(MOTOR_PIN, 1000)
-    motor.start(0)
-    return motor
-
-
-def discharge():
-    GPIO.setup(R_PIN_A, GPIO.IN)
-    GPIO.setup(R_PIN_B, GPIO.OUT)
-    GPIO.output(R_PIN_B, False)
-    time.sleep(0.005)
-
-
-def charge_time():
-    GPIO.setup(R_PIN_B, GPIO.IN)
-    GPIO.setup(R_PIN_A, GPIO.OUT)
-    count = 0
-    GPIO.output(R_PIN_A, True)
-    while not GPIO.input(R_PIN_B):
-        count = count + 1
-    return count
-
-
-def analog_read():
-    discharge()
-    return charge_time()
-
-
-def measure():
-    x = []
-    for i in range(10):
-        x.append(analog_read())
-        time.sleep(0.05)
-    x = sum(x) / len(x)
-
-    x = min(max((x - 100) / 300, 0), 2)
-    return x
+    GPIO.setup(AC_PIN, GPIO.OUT, initial=GPIO.LOW)
+    ac = GPIO.PWM(AC_PIN, 100)
+    ac.start(50)
+    return ac
 
 
 class arduinoReader(threading.Thread):
@@ -77,96 +56,138 @@ class arduinoReader(threading.Thread):
                 try:
                     line = line.split(",")
                     id = int(line[0])
-                    value = float(line[1])/512
+                    value = float(line[1]) / 512
                     ratios[id] = value
                     # print(id, value)
                 except:
                     pass
 
 
-
 if __name__ == "__main__":
-    motor = setup()
+    ac = setup()
     reader = arduinoReader()
     reader.start()
-    SM = pd.read_csv("SM.csv", header=0)
+    allData = pd.read_csv("ele_sun.csv", header=0)
 
-    # print(SM.head())
-
-    usage = []
-    electricityRecord = []
+    usageRecord = [[] for _ in range(3)]
+    electricityRecord = [[] for _ in range(3)]
+    electricity = [0, 0, 0]
+    usage = [0, 0, 0]
     date = []
+    corrcoef = [0, 0, 0]
+    predfee = 0
+    count = 0
 
-    fig, ax = plt.subplots(2, 1, figsize=(8, 6))
-    usagePlot = ax[0]
-    electricityPlot = ax[1]
+    fig, ax = plt.subplots(figsize=(8, 4))
     daySep = []
 
-    noise = np.random.normal(1, scale=0.1, size=48)
-    # print(noise)
+    noise = np.random.normal(1, scale=0.3, size=48)
 
-    # measure.start()
+    devices = ["ac", "solar", "total"]
+    columnMap = {
+        "ac": "E_instanceElectricity",
+        "solar": "instanceElectricityIN",
+        "total": "add",
+    }
 
-    # print(SM.head())
+    for index, row in allData.iterrows():
+        if count % 24 == 0:
+            daySep.append(count)
 
-    for index, row in SM.iterrows():
-        # if index % 12 != 0:
-        #     continue
-
-        if len(usage) % 24 == 0:
-            daySep.append(len(usage))
-
-        ratio = ratios[0]
-        print(ratios)
-
-        instanceElectricity = row["instanceElectricity"]
-        # dt = datetime.fromtimestamp(row["time"] + 1643587200).strftime("%m/%d %H:%M")
         date.append(row["time"])
+        for i, device in enumerate(devices):
+            column = columnMap[device]
+            data = allData[["time", column]]
+            if count % 24 == 0 and count:
+                old = np.array(data.iloc[index - 24 : index, 1])
+                new = np.array(electricityRecord[i][-24:])
+                print(old.shape, new.shape)
+                corrcoef[i] = np.corrcoef(new, old)[0, 1]
+                print(corrcoef)
 
-        pred = SM.iloc[len(usage) : len(usage) + 48, :]
-        pred.iloc[0, 1] = instanceElectricity
-        pred["instanceElectricity"] = pred["instanceElectricity"] * ratio
-        pred["instanceElectricity"] = pred["instanceElectricity"].multiply(
-            noise, axis=0
-        )
+            ratio = ratios[i]
+            print(ratios)
 
-        print(pred["instanceElectricity"].sum()/1000*15)
+            instanceElectricity = row[column]
+            # dt = datetime.fromtimestamp(row["time"] + 1643587200).strftime("%m/%d %H:%M")
 
-        electricity = instanceElectricity * ratio
-        electricityRecord.append(electricity)
-        if len(usage):
-            usage.append((usage[-1] + electricity / 2000))
-        else:
-            usage.append(electricity / 2000)
-        power = max(min(electricity / 50, 100), 0)
-        print(f"{ratio:.2f}, {power:.2f}, {row['time']}, {electricity:.2f}")
+            if i != 2:
+                electricity[i] = instanceElectricity * ratio
+            else:
+                electricity[2] = electricity[0]*ratios[0] - electricity[1]* ratios[1]
+            electricityRecord[i].append(electricity[i])
+            usage[i] = electricity[i] / 1000
+            if count:
+                usageRecord[i].append((usageRecord[i][-1] + usage[i]))
+            else:
+                usageRecord[i].append(usage[i])
+            # print(f"{ratio:.2f}, {power:.2f}, {row['time']}, {electricity[i]:.2f}")
 
+            # predfee[i] = pred[column].sum() / 1000 * 15
 
-        motor.ChangeDutyCycle(power)
+            outJSON[f"{device}_electricity"] = electricity[i]
+            outJSON[f"{device}_usage"] = usage[i]
+            outJSON[f"{device}_corr"] = corrcoef[i]
+            outJSON_str = json.dumps(outJSON)
+            with open("output/out.json", "w") as f:
+                f.write(outJSON_str)
+            # print(outJSON_str)
 
-        usagePlot.plot(date, usage, color="b")
-        electricityPlot.plot(date, electricityRecord, color="r")
-        electricityPlot.plot(
-            pred["time"],
-            pred["instanceElectricity"],
-            color="tab:orange",
-            linestyle="--",
-        )
+            if device == 'ac':
+                power = max(min(electricity[i] / 50, 100), 0)
+                ac.ChangeDutyCycle(power)
 
-        for sep in daySep:
-            usagePlot.axvline(x=sep, color="k", linestyle="--")
-            electricityPlot.axvline(x=sep, color="k", linestyle="--")
+            if count % 3 == 0:
+                pred_len = 48
+                pred = data.iloc[count : count + pred_len, :]
+                pred[column] = pred[column] * ratio
+                pred[column] = pred[column].multiply(noise, axis=0)
+                pred.iloc[0, 1] = electricity[i]
 
-        tmp = len(usage) // 10 + 1
-        xticks = date[::tmp]
+                # Plot
+                ax.plot(date, usageRecord[i], color="b")
 
-        electricityPlot.set_xticks(xticks)
-        usagePlot.set_xticks(xticks)
+                for sep in daySep:
+                    ax.axvline(x=sep, color="k", linestyle="--")
 
-        fig.autofmt_xdate()
-        plt.savefig("plot.png")
+                tmp = count // 10 + 1
+                xticks = date[::tmp]
+                ax.set_xticks(xticks)
 
-        usagePlot.cla()
-        electricityPlot.cla()
+                fig.autofmt_xdate()
+                plt.xlabel("Time", fontsize=12)
+                plt.ylabel("Usage (kWh)", fontsize=12)
+                plt.grid(linestyle="dotted", linewidth=1)
+                plt.savefig(f"output/{device}_usage.png", dpi=100, bbox_inches="tight")
 
-        # time.sleep(0.1)
+                plt.cla()
+
+                ax.plot(date, electricityRecord[i], color="r")
+                ax.plot(
+                    pred["time"],
+                    pred[column],
+                    color="tab:orange",
+                    linestyle="--",
+                )
+
+                for sep in daySep:
+                    ax.axvline(x=sep, color="k", linestyle="--")
+
+                tmp = (count + pred_len) // 10 + 1
+                xticks = date[::tmp]
+                ax.set_xticks(xticks)
+
+                fig.autofmt_xdate()
+                plt.xlabel("Time", fontsize=12)
+                plt.ylabel("Power (W)", fontsize=12)
+                plt.grid(linestyle="dotted", linewidth=1)
+
+                plt.savefig(
+                    f"output/{device}_electricity.png", dpi=100, bbox_inches="tight"
+                )
+
+                plt.cla()
+
+        print(electricity)
+
+        count += 1

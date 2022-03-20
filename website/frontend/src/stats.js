@@ -32,10 +32,10 @@ const Stats = () =>{
     const [over, setOver] = useState(true)
     const makeAPICall = async () => {
         try {
-          const response = await fetch('http://10.20.2.116:6002/test.json', {mode:'cors'});
+          const response = await fetch('http://10.20.2.194:8000/out.json', {mode:'cors'});
           const Statdata = await response.json();
           //overlimit = Statdata.overlimit;
-          console.log(Statdata.overlimit)
+          console.log(Statdata.ac_electricity)
           return Statdata
         }
         catch (e) {
@@ -71,36 +71,37 @@ const Stats = () =>{
                 <Box sx={{width: 800,height: 600 ,border:'1px dashed grey'}}>
                     <Wrapper>
                         <br/>
-                        <Typography variant='h5'>Solar_electricity Chart</Typography>
+                        <Typography variant='h5'>太陽能板發電功率</Typography>
                         <img src='http://10.20.2.194:8000/solar_electricity.png'/>
                     </Wrapper>
                 </Box>
                 <Box sx={{width: 800,height: 600 ,border:'1px dashed grey'}}>
                     <Wrapper>
                         <br/>
-                        <Typography variant='h5'>Electricity Chart</Typography>
+                        <Typography variant='h5'>冷氣用電功率</Typography>
                         <img src='http://10.20.2.194:8000/electricity.png'/>
                     </Wrapper>
                 </Box>
                 <Box sx={{width: 800,height: 600 ,border:'1px dashed grey'}}>
                     <Wrapper>
                         <br/>
-                        <Typography variant='h5'>AC_Electricity Chart</Typography>
+                        <Typography variant='h5'>總消耗功率</Typography>
                         <img src='http://10.20.2.194:8000/ac_electricity.png'/>
                     </Wrapper>
                 </Box>
+
                 <Box sx={{width: 800,height: 600 ,border:'1px dashed grey'}}>
                     <Wrapper>
                         <br/>
-                        <Typography variant='h5'>Solar Usage Chart</Typography>
+                        <Typography variant='h5'>太陽能發電量</Typography>
                         <img src='http://10.20.2.194:8000/solar_usage.png'/>
                     </Wrapper>
                 </Box>
                 <Box sx={{width: 800,height: 600 ,border:'1px dashed grey'}}>
                     <Wrapper>
                         <br/>
-                        <Typography variant='h5'>Usage Chart</Typography>
-                        <img src='http://10.20.2.194:8000/usage.png'/>
+                        <Typography variant='h5'>總用電量</Typography>
+                        <img src='http://10.20.2.194:8000/total_usage.png'/>
                     </Wrapper>
                 </Box>
             </Stack>

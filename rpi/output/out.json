@@ -1,1 +1,1 @@
-{"ac_electricity": 181.71019330662108, "ac_usage": 0.18171019330662108, "ac_corr": 1.0, "solar_electricity": 388.4970438647835, "solar_usage": 0.3884970438647835, "solar_corr": 1.0, "predfee": 0, "aclimit": 0, "total_electricity": -43.00564690347767, "total_usage": -0.04300564690347767, "total_corr": 0.9999135832875309}
+{"ac_electricity": 671.51, "ac_usage": 0.67, "ac_abnormal": true, "solar_electricity": -4.38, "solar_usage": -0.0, "solar_abnormal": true, "predfee": -674.63, "aclimit": false, "total_electricity": 846.85, "total_usage": 0.85, "total_abnormal": true}
